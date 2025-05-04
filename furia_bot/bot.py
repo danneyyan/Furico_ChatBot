@@ -14,9 +14,9 @@ TOKEN = '7581534483:AAHRnz8wyM1QprbwVPuE-FAy3A4T03iqqFI'
 # Inicializa o banco de dados
 init_db()
 
-# Comando /start com menu interativo
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
+# Função para criar o menu principal com botões
+def criar_menu_principal():
+    return InlineKeyboardMarkup([
         [InlineKeyboardButton("1. Últimas Notícias", callback_data='noticias')],
         [InlineKeyboardButton("2. Próximos Jogos", callback_data='jogos')],
         [InlineKeyboardButton("3. Resultados Recentes", callback_data='resultados')],
@@ -25,28 +25,30 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("6. Loja Oficial", callback_data='loja')],
         [InlineKeyboardButton("7. Sorteios", callback_data='sorteios')],
         [InlineKeyboardButton("8. Encontrar Lobby", callback_data='encontrar_lobby')],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("👋 Olá, Furioso! O que você quer ver hoje?", reply_markup=reply_markup)
+        [InlineKeyboardButton("9. Ativar alertas", callback_data='ativar_alertas')],
+        [InlineKeyboardButton("10. Desativar alertas", callback_data='desativar_alertas')],
+    ])
 
-# Comando /alertas (como estava)
+# Comando /start
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 Olá, Furioso! O que você quer ver hoje?",
+        reply_markup=criar_menu_principal()
+    )
+
+# Comando /alertas para ver o status atual
 async def alertas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     status = get_alert_status(user.id)
 
     if status:
-        texto = "🔔 Você está **recebendo** alertas de jogos."
-        botao = InlineKeyboardButton("Desativar alertas", callback_data="desativar_alertas")
+        texto = "🔔 Você está recebendo alertas de jogos da FURIA."
     else:
-        texto = "🔕 Você **não está recebendo** alertas."
-        botao = InlineKeyboardButton("Ativar alertas", callback_data="ativar_alertas")
+        texto = "🔕 Você não está recebendo alertas de jogos da FURIA."
 
-    keyboard = [[botao]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(texto, reply_markup=criar_menu_principal())
 
-    await update.message.reply_markdown(texto, reply_markup=reply_markup)
-
-# Lida com todos os botões
+# Handler dos botões
 async def botao_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user = query.from_user
@@ -63,11 +65,15 @@ async def botao_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "ativar_alertas":
         set_alert_status(user.id, user.username, 1)
-        texto_resposta = "✅ Alertas ativados! Você receberá notificações dos jogos da FURIA."
+        await query.edit_message_text("✅ Alertas ativados! Você receberá notificações dos jogos da FURIA.")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="📋 Menu principal:", reply_markup=criar_menu_principal())
+        return
 
     elif query.data == "desativar_alertas":
         set_alert_status(user.id, user.username, 0)
-        texto_resposta = "🚫 Alertas desativados."
+        await query.edit_message_text("🚫 Alertas desativados.")
+        await context.bot.send_message(chat_id=query.message.chat_id, text="📋 Menu principal:", reply_markup=criar_menu_principal())
+        return
 
     elif query.data == "jogos":
         texto_resposta = f"📅 Próximos jogos da FURIA:\n{obter_proximos_jogos()}"
@@ -79,23 +85,11 @@ async def botao_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("🔥 Face It", callback_data="lobby_faceit")],
             [InlineKeyboardButton("🔙 Voltar ao menu principal", callback_data="voltar_menu")],
         ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text("🎮 Escolha uma plataforma para encontrar um lobby:", reply_markup=reply_markup)
+        await query.edit_message_text("🎮 Escolha uma plataforma para encontrar um lobby:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
     elif query.data == "voltar_menu":
-        keyboard = [
-            [InlineKeyboardButton("1. Últimas Notícias", callback_data='noticias')],
-            [InlineKeyboardButton("2. Próximos Jogos", callback_data='jogos')],
-            [InlineKeyboardButton("3. Resultados Recentes", callback_data='resultados')],
-            [InlineKeyboardButton("4. Conhecer o Time", callback_data='time')],
-            [InlineKeyboardButton("5. Curiosidades", callback_data='curiosidades')],
-            [InlineKeyboardButton("6. Loja Oficial", callback_data='loja')],
-            [InlineKeyboardButton("7. Sorteios", callback_data='sorteios')],
-            [InlineKeyboardButton("8. Encontrar Lobby", callback_data='encontrar_lobby')],
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text("👋 Olá, Furioso! O que você quer ver hoje?", reply_markup=reply_markup)
+        await query.edit_message_text("👋 Olá, Furioso! O que você quer ver hoje:", reply_markup=criar_menu_principal())
         return
 
     elif query.data == "lobby_matchmaking":
@@ -113,37 +107,10 @@ async def botao_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         texto_resposta = "❌ Opção inválida."
 
-    await query.edit_message_text(texto_resposta, parse_mode="Markdown")
+    await query.edit_message_text(texto_resposta, parse_mode='Markdown')
+    await context.bot.send_message(chat_id=query.message.chat_id, text="📋 Menu principal:", reply_markup=criar_menu_principal())
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await context.bot.send_message(chat_id=query.message.chat_id, text="📋 Menu principal:", reply_markup=reply_markup)
-
-
-
-    # Tratamento dos botões de alertas
-    if query.data == "ativar_alertas":
-        set_alert_status(user.id, user.username, 1)
-        await query.edit_message_text("✅ Alertas ativados! Você receberá notificações dos jogos da FURIA.")
-    elif query.data == "desativar_alertas":
-        set_alert_status(user.id, user.username, 0)
-        await query.edit_message_text("🚫 Alertas desativados.")
-    elif query.data in respostas:
-        await query.edit_message_text(respostas[query.data], parse_mode='Markdown')
-    else:
-        await query.edit_message_text("❌ Opção inválida.")
-
-# Função agendada para enviar alertas
-async def enviar_alerta(application):
-    mensagem = "📢 *Atenção!*\nA FURIA joga hoje às 20h! Não perca! 🔥"
-
-    for user_id in get_all_users_with_alerts():
-        try:
-            await application.bot.send_message(chat_id=user_id, text=mensagem, parse_mode='Markdown')
-        except Exception as e:
-            print(f"Erro ao enviar mensagem para {user_id}: {e}")
-
-
-            # Função para obter os próximos jogos da FURIA com web scraping do HLTV
+# Scraping dos jogos da FURIA
 def obter_proximos_jogos():
     url = 'https://www.hltv.org/team/8297/furia'
     headers = {'User-Agent': 'Mozilla/5.0'}
@@ -159,7 +126,6 @@ def obter_proximos_jogos():
         try:
             data = match.select_one('.matchTime').get('data-unix')
             timestamp = int(data) // 1000
-            from datetime import datetime
             horario = datetime.fromtimestamp(timestamp).strftime('%d/%m %H:%M')
 
             time1 = match.select_one('.matchTeam1 .team').text.strip()
@@ -172,22 +138,25 @@ def obter_proximos_jogos():
 
     return '\n'.join(jogos) if jogos else "🔍 Nenhum jogo encontrado no momento."
 
+# Envia alerta programado
+async def enviar_alerta(application):
+    mensagem = "📢 *Atenção!*\nA FURIA joga hoje às 20h! Não perca! 🔥"
+    for user_id in get_all_users_with_alerts():
+        try:
+            await application.bot.send_message(chat_id=user_id, text=mensagem, parse_mode='Markdown')
+        except Exception as e:
+            print(f"Erro ao enviar mensagem para {user_id}: {e}")
 
-
-
-# Inicializa o bot e o agendador
+# Inicialização do bot e agendador
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("alertas", alertas))
     app.add_handler(CallbackQueryHandler(botao_handler))
 
-    # Agendador de tarefas
     scheduler = BackgroundScheduler()
     scheduler.add_job(lambda: asyncio.run(enviar_alerta(app)), 'cron', hour=17, minute=0)
     scheduler.start()
 
     print("🤖 Bot rodando com agendador ativo...")
     app.run_polling()
-
